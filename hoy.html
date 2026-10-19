@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บันทึกรายการหวย</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+  :root {
+    --bg:          #eef2f6;
+    --surface:     #ffffff;
+    --ink:         #2d3e50;
+    --ink-soft:    #6b7f94;
+    --line:        #dce4ec;
+    --primary:     #4a7fa5;
+    --primary-dk:  #3a6685;
+    --accent:      #5c9ead;
+    --accent-dk:   #4a8391;
+    --warn-bg:     #eaf1f6;
+    --warn-ink:    #4a6b82;
+    --shadow:      0 4px 16px rgba(74, 127, 165, 0.12);
+    --radius:      14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: 'Kanit', sans-serif;
+    padding: 20px 16px;
+    max-width: 520px;
+    margin: auto;
+    background: linear-gradient(180deg, #eef2f6 0%, #e3eaf1 100%);
+    background-attachment: fixed;
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .card {
+    background: var(--surface);
+    padding: 22px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+  }
+
+  h1, h2, h3 { margin: 0 0 14px; font-weight: 600; letter-spacing: .2px; }
+
+  label { display: block; font-size: .88em; color: var(--ink-soft); margin-top: 10px; }
+
+  input, select {
+    width: 100%;
+    padding: 11px 13px;
+    margin: 6px 0;
+    font-family: inherit;
+    font-size: .95em;
+    color: var(--ink);
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    transition: border-color .2s, box-shadow .2s, background .2s;
+  }
+
+  input:hover, select:hover { border-color: #c3d2e0; }
+
+  input:focus, select:focus {
+    outline: none;
+    background: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(74, 127, 165, .18);
+  }
+
+  input::placeholder { color: #a9b8c6; }
+
+  button {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    color: #fff;
+    margin-top: 12px;
+    transition: transform .12s ease, box-shadow .2s, filter .2s;
+  }
+
+  button:hover  { filter: brightness(1.07); box-shadow: 0 6px 16px rgba(45, 62, 80, .18); }
+  button:active { transform: translateY(1px); box-shadow: none; }
+
+  .add-btn    { background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dk) 100%); }
+  .export-btn { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dk) 100%); }
+
+  .alert-box {
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    padding: 12px 14px;
+    border: 1px solid #d3e0ea;
+    border-left: 4px solid var(--primary);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    font-size: .9em;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 14px;
+    font-size: .88em;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  th, td { padding: 11px 8px; text-align: center; border-bottom: 1px solid var(--line); }
+
+  th {
+    background: #e6edf4;
+    color: var(--ink);
+    font-weight: 500;
+    font-size: .92em;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: #fafcfd; }
+  tbody tr:hover { background: #eef4f9; }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+}
+
+.icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    transition: transform .2s ease;
+}
+
+/* ไอคอนขยับเล็กน้อยตอน hover */
+.add-btn:hover    .icon { transform: scale(1.1); }
+.export-btn:hover .icon { transform: translateY(-2px); }
+
+/* สถานะกำลังโหลด: ไอคอนหมุน */
+button.loading .icon { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+    <div class="card">
+        <h3 style="margin-top:0">ตั้งค่าเลขอั้น (แอดมินแก้ไขที่นี่)</h3>
+        <input type="text" id="blockedNumbers" placeholder="ใส่เลขอั้นคั่นด้วยจุลภาค เช่น 123,456" onchange="updateBlockedList()">
+        <div id="blockedDisplay" class="alert-box">เลขอั้น: ไม่มี</div>
+    </div>
+
+    <div class="card">
+        <input type="text" id="customerName" placeholder="ชื่อผู้ซื้อ">
+        <input type="text" id="number" placeholder="เลข (เช่น 123)">
+        <select id="type">
+            <option value="บน">บน</option>
+            <option value="ล่าง">ล่าง</option>
+            <option value="โต๊ด">โต๊ด</option>
+        </select>
+        <input type="number" id="amount" placeholder="จำนวนเงิน">
+        <button class="add-btn" onclick="addItem()">เพิ่มรายการ</button>
+    </div>
+
+    <table id="betTable">
+        <thead><tr><th>ชื่อ</th><th>เลข</th><th>ประเภท</th><th>เงิน</th></tr></thead>
+        <tbody id="betBody"></tbody>
+    </table>
+
+    <h4 id="totalSum">ยอดรวม: 0</h4>
+    <button class="export-btn" onclick="exportExcel()">ส่งออกไฟล์ Excel</button>
+
+    <script>
+        let items = [];
+        let blockedList = [];
+
+        function updateBlockedList() {
+            const input = document.getElementById('blockedNumbers').value;
+            blockedList = input.split(',').map(s => s.trim());
+            document.getElementById('blockedDisplay').innerText = "เลขอั้น: " + (blockedList.join(', ') || "ไม่มี");
+        }
+
+        function addItem() {
+            const name = document.getElementById('customerName').value;
+            const num = document.getElementById('number').value;
+            const type = document.getElementById('type').value;
+            const amt = parseInt(document.getElementById('amount').value);
+            
+            if(!name || !num || !amt) return alert("กรุณากรอกข้อมูลให้ครบ");
+            
+            // ตรวจสอบเลขอั้น
+            if(blockedList.includes(num)) {
+                return alert("⚠️ เลขนี้เป็นเลขอั้น ไม่สามารถบันทึกได้!");
+            }
+
+            // แจ้งเตือนยืนยัน
+            if(!confirm(`ยืนยันการบันทึก: ${name} / ${num} (${type}) / ${amt} บาท?`)) return;
+
+            items.push({ ชื่อ: name, เลข: num, ประเภท: type, จำนวนเงิน: amt });
+            updateTable();
+            
+            // ล้างค่าช่องกรอก
+            document.getElementById('number').value = '';
+            document.getElementById('amount').value = '';
+            document.getElementById('number').focus();
+        }
+
+        function updateTable() {
+            const body = document.getElementById('betBody');
+            body.innerHTML = '';
+            let sum = 0;
+            items.forEach(i => {
+                body.innerHTML += `<tr><td>${i.ชื่อ}</td><td>${i.เลข}</td><td>${i.ประเภท}</td><td>${i.จำนวนเงิน}</td></tr>`;
+                sum += i.จำนวนเงิน;
+            });
+            document.getElementById('totalSum').innerText = "ยอดรวม: " + sum;
+        }
+
+        function exportExcel() {
+            if(items.length === 0) return alert("ยังไม่มีรายการ");
+            const ws = XLSX.utils.json_to_sheet(items);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "List");
+            XLSX.writeFile(wb, "โพยหวย_" + new Date().toLocaleDateString() + ".xlsx");
+        }
+    </script>
+
+</body>
+</html>
