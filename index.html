@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>รับออเดอร์ & สถิติเลขท้าย 2 ตัว</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+  :root {
+    --bg:          #eef2f6;
+    --surface:     #ffffff;
+    --ink:         #2d3e50;
+    --ink-soft:    #6b7f94;
+    --line:        #dce4ec;
+    --primary:     #4a7fa5;
+    --primary-dk:  #3a6685;
+    --accent:      #5c9ead;
+    --accent-dk:   #4a8391;
+    --warn-bg:     #eaf1f6;
+    --warn-ink:    #4a6b82;
+    --danger:      #c0564f;
+    --danger-bg:   #faeceb;
+    --shadow:      0 4px 16px rgba(74, 127, 165, 0.12);
+    --radius:      14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: 'Kanit', sans-serif;
+    padding: 20px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+    padding-top: calc(20px + env(safe-area-inset-top, 0px));
+    max-width: 560px;
+    margin: auto;
+    background: linear-gradient(180deg, #eef2f6 0%, #e3eaf1 100%);
+    background-attachment: fixed;
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .card {
+    background: var(--surface);
+    padding: 22px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+  }
+
+  h1, h2, h3, h4 { margin: 0 0 14px; font-weight: 600; letter-spacing: .2px; }
+
+  label { display: block; font-size: .88em; color: var(--ink-soft); margin-top: 10px; }
+
+  input, select {
+    width: 100%;
+    padding: 11px 13px;
+    margin: 6px 0;
+    font-family: inherit;
+    font-size: .95em;
+    color: var(--ink);
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    transition: border-color .2s, box-shadow .2s, background .2s;
+  }
+
+  input:hover, select:hover { border-color: #c3d2e0; }
+
+  input:focus, select:focus {
+    outline: none;
+    background: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(74, 127, 165, .18);
+  }
+
+  input::placeholder { color: #a9b8c6; }
+
+  button {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    color: #fff;
+    margin-top: 12px;
+    transition: transform .12s ease, box-shadow .2s, filter .2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+  }
+
+  button:hover  { filter: brightness(1.07); box-shadow: 0 6px 16px rgba(45, 62, 80, .18); }
+  button:active { transform: translateY(1px); box-shadow: none; }
+  button:disabled { opacity: .55; cursor: not-allowed; filter: none; box-shadow: none; }
+
+  .add-btn    { background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dk) 100%); }
+  .export-btn { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dk) 100%); }
+  .ghost-btn  { background: #fff; color: var(--primary); border: 1px solid var(--line); }
+  .ghost-btn:hover { filter: none; background: #f3f7fa; }
+  .danger-btn { background: linear-gradient(135deg, var(--danger) 0%, #a84842 100%); }
+
+  .row-2 { display: flex; gap: 10px; }
+  .row-2 > div { flex: 1; min-width: 0; }
+
+  .icon { width: 18px; height: 18px; flex-shrink: 0; transition: transform .2s ease; }
+  .add-btn:hover    .icon { transform: scale(1.1); }
+  .export-btn:hover .icon { transform: translateY(-2px); }
+  button.loading .icon { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .icon-btn {
+    width: 32px; height: 32px; padding: 0; margin: 0;
+    border-radius: 8px; background: #f1f5f9; color: var(--ink-soft);
+    flex-shrink: 0;
+  }
+  .icon-btn:hover { background: #e4ebf1; filter: none; box-shadow: none; }
+  .icon-btn .icon { width: 16px; height: 16px; }
+  .icon-btn.del:hover { background: var(--danger-bg); color: var(--danger); }
+
+  .alert-box {
+    background: var(--warn-bg);
+    color: var(--warn-ink);
+    padding: 12px 14px;
+    border: 1px solid #d3e0ea;
+    border-left: 4px solid var(--primary);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    font-size: .9em;
+  }
+  .alert-box.tip { border-left-color: var(--accent); }
+  .alert-box.danger { background: var(--danger-bg); color: var(--danger); border-left-color: var(--danger); border-color: #f0d7d4; }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 14px;
+    font-size: .85em;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  th, td { padding: 10px 6px; text-align: center; border-bottom: 1px solid var(--line); }
+
+  th { background: #e6edf4; color: var(--ink); font-weight: 500; font-size: .9em; }
+
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: #fafcfd; }
+  tbody tr:hover { background: #eef4f9; }
+
+  .total-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin: 16px 2px 0;
+  }
+  .total-row .sum { font-size: 1.3em; font-weight: 600; color: var(--primary-dk); }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    background: #e2e9f0;
+    padding: 5px;
+    border-radius: 12px;
+  }
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    color: var(--ink-soft);
+    margin: 0;
+    padding: 10px 8px;
+    font-size: .92em;
+    box-shadow: none;
+  }
+  .tab-btn:hover { filter: none; box-shadow: none; background: rgba(255,255,255,.5); }
+  .tab-btn.active {
+    background: var(--surface);
+    color: var(--primary-dk);
+    box-shadow: 0 2px 8px rgba(74,127,165,.18);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .countdown {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--warn-bg); border-radius: 10px; padding: 10px 14px;
+    margin-bottom: 14px; font-size: .9em; color: var(--warn-ink);
+  }
+  .countdown b { color: var(--primary-dk); font-variant-numeric: tabular-nums; }
+  .countdown.closed { background: var(--danger-bg); color: var(--danger); }
+
+  small.hint { display:block; color: var(--ink-soft); font-size: .78em; margin-top: 4px; }
+
+  /* ---- สถิติเลขท้าย 2 ตัว ---- */
+  .range-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 4px; }
+  .range-btn {
+    width: auto; margin: 0;
+    padding: 9px 15px;
+    border-radius: 999px;
+    background: #eef2f6;
+    color: var(--primary-dk);
+    font-weight: 500;
+    font-size: .85em;
+  }
+  .range-btn:hover { filter: none; box-shadow: none; background: #e2e9f0; }
+  .range-btn.active {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-dk) 100%);
+    color: #fff;
+  }
+  .search-row input { margin-top: 12px; }
+
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin-top: 16px; }
+  @media (max-width: 380px) { .grid { gap: 3px; } }
+
+  .cell {
+    aspect-ratio: 1/1;
+    width: auto; margin: 0; padding: 0;
+    border-radius: 9px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 600;
+    font-size: clamp(10px, 2.5vw, 14px);
+    color: var(--primary-dk);
+    box-shadow: none;
+  }
+  .cell:hover { transform: scale(1.08); z-index: 2; box-shadow: 0 4px 12px rgba(45,62,80,.22); filter: none; }
+  .cell .n { line-height: 1; }
+  .cell .c { font-size: 8.5px; font-weight: 500; opacity: .8; margin-top: 2px; }
+  .cell.hot { color: #fff; }
+  .cell.highlight { outline: 3px solid #e0a63a; outline-offset: -3px; }
+
+  .legend { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 11.5px; color: var(--ink-soft); }
+  .legend-bar { flex: 1; height: 9px; border-radius: 999px; background: linear-gradient(90deg, #eef2f6, var(--primary-dk)); }
+
+  .meta-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-top: 12px; font-size: 12.5px; color: var(--ink-soft); }
+  .meta-row b { color: var(--ink); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(45,62,80,.45);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 50;
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  @media (min-width: 640px) { .overlay { align-items: center; } }
+  .panel {
+    background: var(--surface); width: 100%; max-width: 420px; max-height: 76vh; overflow-y: auto;
+    border-radius: 20px 20px 0 0; padding: 20px 20px 24px;
+    transform: translateY(14px); transition: transform .2s ease;
+  }
+  @media (min-width: 640px) { .panel { border-radius: 16px; transform: translateY(0) scale(.97); margin: 16px; } }
+  .overlay.show .panel { transform: translateY(0) scale(1); }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .panel-head h2 { margin: 0; font-size: 26px; color: var(--primary-dk); }
+  .panel-close { width: 32px; height: 32px; padding: 0; margin: 0; border-radius: 50%; background: #eef2f6; color: var(--ink-soft); }
+  .panel-close:hover { filter: none; box-shadow: none; background: #e2e9f0; }
+  .panel-sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 12px; }
+  .date-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .date-list li { display: flex; justify-content: space-between; padding: 9px 12px; border-radius: 9px; background: #f3f7fa; font-size: 13.5px; }
+  .date-list li span.y { color: var(--ink-soft); font-size: 11.5px; }
+  .disclaimer { font-size: 11.5px; color: var(--ink-soft); line-height: 1.6; text-align: center; margin-top: 4px; }
+
+  #randomDisplay {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    min-height: 74px;
+    font-size: 34px; font-weight: 600; letter-spacing: 2px;
+    color: var(--primary-dk);
+    background: #f3f7fa;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  #randomDisplay .num-chip {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-dk) 100%);
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 10px;
+  }
+  #randomDisplay.spinning .num-chip { opacity: .75; }
+  #randomHistory { display: flex; flex-wrap: wrap; gap: 6px; }
+  #randomHistory .chip {
+    background: #eef2f6; color: var(--primary-dk);
+    font-weight: 500; font-size: 13px;
+    padding: 5px 11px; border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+
+    <div class="tabs">
+        <button class="tab-btn active" id="tabBtnOrder" type="button">📝 รับออเดอร์</button>
+        <button class="tab-btn" id="tabBtnStats" type="button">🎲 สถิติเลขท้าย 2 ตัว</button>
+    </div>
+
+    <!-- ============== TAB 1: รับออเดอร์ ============== -->
+    <div class="tab-content active" id="tabOrder">
+
+        <div class="card">
+            <h3 style="margin-top:0">⚙️ ตั้งค่า (แอดมินแก้ไขที่นี่)</h3>
+
+            <label>สินค้า/เมนูที่หมด หรืองดรับออเดอร์ (คั่นด้วยจุลภาค)</label>
+            <input type="text" id="soldOutList" placeholder="เช่น เค้กช็อกโกแลต, ไซรัปวนิลา" onchange="updateSoldOutList()">
+            <div id="soldOutDisplay" class="alert-box">รายการที่งดรับ: ไม่มี</div>
+
+            <label>เวลาปิดรับออเดอร์ของแต่ละวัน</label>
+            <input type="time" id="closeTime" value="13:00" onchange="saveCloseTime()">
+            <small class="hint">ระบบจะนับถอยหลังและปิดปุ่ม "เพิ่มรายการ" อัตโนมัติเมื่อถึงเวลานี้ของทุกวัน</small>
+        </div>
+
+        <div class="card" id="countdownCard">
+            <div class="countdown" id="countdownBox">
+                <span>⏰ ปิดรับออเดอร์ใน</span>
+                <b id="countdownText">--:--:--</b>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0">เพิ่มรายการออเดอร์</h3>
+            <div class="row-2">
+                <div>
+                    <input type="text" id="customerName" placeholder="ชื่อลูกค้า">
+                </div>
+                <div>
+                    <input type="tel" id="customerPhone" placeholder="เบอร์โทร">
+                </div>
+            </div>
+            <input type="text" id="itemName" placeholder="รายการสินค้า/เมนู">
+            <input type="text" id="itemOption" placeholder="ตัวเลือก เช่น ไซส์ L / หวานน้อย (ถ้ามี)">
+            <input type="number" id="amount" placeholder="ราคารวม (บาท)" min="0">
+            <button class="add-btn" id="addBtn" onclick="addItem()">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                เพิ่มรายการ
+            </button>
+        </div>
+
+        <div class="alert-box tip">
+            📸 แนะนำให้ "บันทึกภาพหน้าจอ" เก็บไว้เป็นหลักฐานทุกครั้งหลังเพิ่มรายการเสร็จ
+        </div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0">รายการทั้งหมด</h3>
+                <button class="ghost-btn" style="width:auto; margin:0; padding:8px 14px; font-size:.85em;" onclick="clearAll()">ล้างข้อมูลทั้งหมด</button>
+            </div>
+            <table id="orderTable">
+                <thead><tr><th>เวลา</th><th>ชื่อ</th><th>รายการ</th><th>ตัวเลือก</th><th>ราคา</th><th></th></tr></thead>
+                <tbody id="orderBody"></tbody>
+            </table>
+            <div class="total-row">
+                <span>ยอดรวมทั้งหมด</span>
+                <span class="sum" id="totalSum">0 บาท</span>
+            </div>
+        </div>
+
+        <div class="card" id="summaryCard" style="display:none;">
+            <h3 style="margin-top:0">สรุปยอดตามลูกค้า</h3>
+            <table id="summaryTable">
+                <thead><tr><th>ชื่อ</th><th>เบอร์โทร</th><th>จำนวนรายการ</th><th>ยอดรวม</th></tr></thead>
+                <tbody id="summaryBody"></tbody>
+            </table>
+        </div>
+
+        <button class="export-btn" onclick="exportExcel()">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+            ส่งออกไฟล์ Excel
+        </button>
+    </div>
+
+    <!-- ============== TAB 2: สถิติเลขท้าย 2 ตัว ============== -->
+    <div class="tab-content" id="tabStats">
+        <div class="card">
+            <p style="margin:0 0 14px; font-size:.85em; color:var(--ink-soft);">
+                🎲 ดูเพื่อความสนุก อิงผลออกรางวัลจริงจากสลากกินแบ่งรัฐบาล — ไม่ใช่การพยากรณ์หรือคำแนะนำการพนัน
+            </p>
+
+            <div class="range-row" id="rangeRow">
+                <button class="range-btn" data-years="5">ย้อนหลัง 5 ปี</button>
+                <button class="range-btn" data-years="10">ย้อนหลัง 10 ปี</button>
+                <button class="range-btn" data-years="20">ย้อนหลัง 20 ปี</button>
+                <button class="range-btn" data-years="0">ทั้งหมด</button>
+            </div>
+
+            <div class="search-row">
+                <input id="searchInput" type="text" inputmode="numeric" maxlength="2" placeholder="🔍 พิมพ์เลข 2 หลักเพื่อไฮไลต์ เช่น 09">
+            </div>
+
+            <div id="gridHost">
+                <div style="text-align:center; padding:30px; color:var(--ink-soft);">⏳ กำลังโหลดข้อมูล...</div>
+            </div>
+
+            <div class="legend">
+                <span>น้อย</span>
+                <div class="legend-bar"></div>
+                <span>ออกบ่อย</span>
+            </div>
+
+            <div class="meta-row">
+                <span>ช่วงข้อมูล: <b id="metaRange">-</b></span>
+                <span>จำนวนงวด: <b id="metaCount">-</b></span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0">🎰 สุ่มเลขสำหรับงวดหน้า</h3>
+            <p style="margin:0 0 14px; font-size:.82em; color:var(--ink-soft);">
+                สุ่มด้วย Math.random() ล้วน 100% ไม่ได้อิงสถิติย้อนหลังใดๆ ทั้งสิ้น เอาไว้เสี่ยงดวงขำๆ เท่านั้น
+            </p>
+            <div id="randomDisplay">--</div>
+            <div class="row-2">
+                <button class="add-btn" id="randomBtn1" type="button" onclick="spinRandomNumbers(1)">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
+                    สุ่ม 1 เลข
+                </button>
+                <button class="ghost-btn" id="randomBtn3" type="button" style="margin-top:12px;" onclick="spinRandomNumbers(3)">สุ่มทีละ 3 เลข</button>
+            </div>
+            <div id="randomHistoryWrap" style="display:none; margin-top:14px;">
+                <small class="hint" style="margin:0 0 6px;">เลขที่สุ่มล่าสุด</small>
+                <div id="randomHistory"></div>
+            </div>
+        </div>
+
+        <p class="disclaimer">
+            📊 ข้อมูลอ้างอิงผลออกรางวัลเลขท้าย 2 ตัวจากสำนักงานสลากกินแบ่งรัฐบาล (GLO) ข้อมูลในไฟล์นี้เป็นชุดข้อมูล
+            ณ วันที่สร้างไฟล์ (ถึงงวด 16 ธ.ค. 2567) — อัปเดตเพิ่มเติมเองได้โดยแก้ตัวแปร DRAWS_DATA ด้านล่างสุดของไฟล์
+        </p>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 id="panelNumber">00</h2>
+          <button class="panel-close" id="panelClose" type="button" aria-label="ปิด">✕</button>
+        </div>
+        <div class="panel-sub" id="panelSub">ออกทั้งหมด 0 ครั้ง ในช่วงที่เลือก</div>
+        <ul class="date-list" id="panelDates"></ul>
+      </div>
+    </div>
+
+    <script>
+    /* ===================== TAB SWITCHING ===================== */
+    const tabBtnOrder = document.getElementById('tabBtnOrder');
+    const tabBtnStats = document.getElementById('tabBtnStats');
+    const tabOrder = document.getElementById('tabOrder');
+    const tabStats = document.getElementById('tabStats');
+
+    function showTab(which) {
+        const isOrder = which === 'order';
+        tabBtnOrder.classList.toggle('active', isOrder);
+        tabBtnStats.classList.toggle('active', !isOrder);
+        tabOrder.classList.toggle('active', isOrder);
+        tabStats.classList.toggle('active', !isOrder);
+        if (!isOrder) initStatsOnce();
+    }
+    tabBtnOrder.addEventListener('click', () => showTab('order'));
+    tabBtnStats.addEventListener('click', () => showTab('stats'));
+
+    /* ===================== TAB 1: รับออเดอร์ ===================== */
+    let items = [];
+    let soldOutList = [];
+    let closeTimeStr = localStorage.getItem('preorder_closeTime') || '13:00';
+    document.getElementById('closeTime').value = closeTimeStr;
+
+    function updateSoldOutList() {
+        const input = document.getElementById('soldOutList').value;
+        soldOutList = input.split(',').map(s => s.trim()).filter(Boolean);
+        document.getElementById('soldOutDisplay').innerText =
+            "รายการที่งดรับ: " + (soldOutList.join(', ') || "ไม่มี");
+    }
+
+    function saveCloseTime() {
+        closeTimeStr = document.getElementById('closeTime').value || '13:00';
+        localStorage.setItem('preorder_closeTime', closeTimeStr);
+    }
+
+    function isPastCloseTime() {
+        const [h, m] = closeTimeStr.split(':').map(Number);
+        const now = new Date();
+        const close = new Date();
+        close.setHours(h, m, 0, 0);
+        return now >= close;
+    }
+
+    function tickCountdown() {
+        const box = document.getElementById('countdownBox');
+        const text = document.getElementById('countdownText');
+        const addBtn = document.getElementById('addBtn');
+        const [h, m] = closeTimeStr.split(':').map(Number);
+        const now = new Date();
+        const close = new Date();
+        close.setHours(h, m, 0, 0);
+
+        if (now >= close) {
+            box.classList.add('closed');
+            box.querySelector('span').textContent = '🔒 ปิดรับออเดอร์แล้วสำหรับวันนี้';
+            text.textContent = '';
+            addBtn.disabled = true;
+        } else {
+            box.classList.remove('closed');
+            box.querySelector('span').textContent = '⏰ ปิดรับออเดอร์ใน';
+            const diff = close - now;
+            const hh = String(Math.floor(diff / 3600000)).padStart(2, '0');
+            const mm = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+            const ss = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+            text.textContent = hh + ':' + mm + ':' + ss;
+            addBtn.disabled = false;
+        }
+    }
+    tickCountdown();
+    setInterval(tickCountdown, 1000);
+
+    function addItem() {
+        if (isPastCloseTime()) {
+            alert('🔒 ปิดรับออเดอร์แล้วสำหรับวันนี้');
+            return;
+        }
+        const name = document.getElementById('customerName').value.trim();
+        const phone = document.getElementById('customerPhone').value.trim();
+        const itemName = document.getElementById('itemName').value.trim();
+        const option = document.getElementById('itemOption').value.trim();
+        const amt = parseInt(document.getElementById('amount').value);
+
+        if (!name || !itemName || !amt) return alert('กรุณากรอกข้อมูลให้ครบ (ชื่อ, รายการ, ราคา)');
+
+        if (soldOutList.some(s => itemName.includes(s))) {
+            return alert('⚠️ รายการนี้งดรับออเดอร์ชั่วคราว ไม่สามารถบันทึกได้');
+        }
+
+        if (!confirm(`ยืนยันการบันทึก:\n${name} (${phone || '-'})\n${itemName}${option ? ' / ' + option : ''}\n${amt} บาท`)) return;
+
+        items.push({
+            เวลา: new Date().toLocaleString('th-TH'),
+            ชื่อ: name,
+            เบอร์โทร: phone,
+            รายการ: itemName,
+            ตัวเลือก: option,
+            ราคา: amt
+        });
+        updateOrderTable();
+
+        document.getElementById('itemName').value = '';
+        document.getElementById('itemOption').value = '';
+        document.getElementById('amount').value = '';
+        document.getElementById('itemName').focus();
+    }
+
+    function deleteItem(idx) {
+        if (!confirm('ลบรายการนี้?')) return;
+        items.splice(idx, 1);
+        updateOrderTable();
+    }
+
+    function editItem(idx) {
+        const it = items[idx];
+        const newAmt = prompt('แก้ไขราคา (บาท):', it.ราคา);
+        if (newAmt === null) return;
+        const n = parseInt(newAmt);
+        if (isNaN(n)) return alert('กรุณาใส่ตัวเลข');
+        it.ราคา = n;
+        updateOrderTable();
+    }
+
+    function clearAll() {
+        if (items.length === 0) return;
+        if (!confirm('ล้างรายการทั้งหมด ' + items.length + ' รายการ?')) return;
+        items = [];
+        updateOrderTable();
+    }
+
+    function updateOrderTable() {
+        const body = document.getElementById('orderBody');
+        body.innerHTML = '';
+        let sum = 0;
+        items.forEach((i, idx) => {
+            sum += i.ราคา;
+            const tr = document.createElement('tr');
+            const timePart = (i.เวลา.split(' ')[1]) || i.เวลา;
+            tr.innerHTML =
+                '<td style="font-size:.85em;">' + timePart + '</td>' +
+                '<td>' + i.ชื่อ + '</td>' +
+                '<td>' + i.รายการ + '</td>' +
+                '<td>' + (i.ตัวเลือก || '-') + '</td>' +
+                '<td>' + i.ราคา.toLocaleString() + '</td>' +
+                '<td style="white-space:nowrap;"></td>';
+            const tdBtns = tr.lastElementChild;
+            const editBtn = document.createElement('button');
+            editBtn.className = 'icon-btn';
+            editBtn.title = 'แก้ไข';
+            editBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
+            editBtn.onclick = () => editItem(idx);
+            const delBtn = document.createElement('button');
+            delBtn.className = 'icon-btn del';
+            delBtn.title = 'ลบ';
+            delBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0l-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6"/></svg>';
+            delBtn.onclick = () => deleteItem(idx);
+            tdBtns.style.display = 'flex';
+            tdBtns.style.gap = '4px';
+            tdBtns.appendChild(editBtn);
+            tdBtns.appendChild(delBtn);
+            body.appendChild(tr);
+        });
+        document.getElementById('totalSum').textContent = sum.toLocaleString() + ' บาท';
+        updateSummary();
+    }
+
+    function updateSummary() {
+        const card = document.getElementById('summaryCard');
+        const body = document.getElementById('summaryBody');
+        body.innerHTML = '';
+        if (items.length === 0) { card.style.display = 'none'; return; }
+
+        const groups = {};
+        items.forEach(i => {
+            const key = i.ชื่อ + '|' + (i.เบอร์โทร || '');
+            if (!groups[key]) groups[key] = { ชื่อ: i.ชื่อ, เบอร์โทร: i.เบอร์โทร, count: 0, sum: 0 };
+            groups[key].count += 1;
+            groups[key].sum += i.ราคา;
+        });
+
+        Object.values(groups).forEach(g => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + g.ชื่อ + '</td><td>' + (g.เบอร์โทร || '-') + '</td><td>' +
+                g.count + '</td><td>' + g.sum.toLocaleString() + '</td>';
+            body.appendChild(tr);
+        });
+        card.style.display = '';
+    }
+
+    function exportExcel() {
+        if (items.length === 0) return alert('ยังไม่มีรายการ');
+        const ws = XLSX.utils.json_to_sheet(items);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+        XLSX.writeFile(wb, 'ออเดอร์_' + new Date().toLocaleDateString('th-TH').replace(/\//g, '-') + '.xlsx');
+    }
+
+    /* ===================== TAB 2: สถิติเลขท้าย 2 ตัว ===================== */
+    const DRAWS_DATA = 
+[{"date":"2006-12-30","last2":"07"},{"date":"2007-01-16","last2":"54"},{"date":"2007-02-01","last2":"56"},{"date":"2007-02-16","last2":"95"},{"date":"2007-03-01","last2":"61"},{"date":"2007-03-16","last2":"85"},{"date":"2007-04-01","last2":"93"},{"date":"2007-04-16","last2":"63"},{"date":"2007-05-02","last2":"81"},{"date":"2007-05-16","last2":"25"},{"date":"2007-06-01","last2":"05"},{"date":"2007-06-16","last2":"41"},{"date":"2007-07-01","last2":"76"},{"date":"2007-07-16","last2":"77"},{"date":"2007-08-01","last2":"29"},{"date":"2007-08-16","last2":"93"},{"date":"2007-09-01","last2":"69"},{"date":"2007-09-16","last2":"45"},{"date":"2007-10-01","last2":"76"},{"date":"2007-10-16","last2":"48"},{"date":"2007-11-01","last2":"88"},{"date":"2007-11-16","last2":"73"},{"date":"2007-12-16","last2":"96"},{"date":"2007-12-30","last2":"81"},{"date":"2008-01-16","last2":"81"},{"date":"2008-02-01","last2":"26"},{"date":"2008-02-16","last2":"80"},{"date":"2008-03-01","last2":"05"},{"date":"2008-03-16","last2":"33"},{"date":"2008-04-01","last2":"71"},{"date":"2008-04-16","last2":"64"},{"date":"2008-05-02","last2":"62"},{"date":"2008-05-16","last2":"69"},{"date":"2008-06-01","last2":"35"},{"date":"2008-06-16","last2":"75"},{"date":"2008-07-01","last2":"50"},{"date":"2008-07-16","last2":"41"},{"date":"2008-08-01","last2":"11"},{"date":"2008-08-16","last2":"36"},{"date":"2008-09-01","last2":"09"},{"date":"2008-09-16","last2":"56"},{"date":"2008-10-01","last2":"67"},{"date":"2008-10-16","last2":"98"},{"date":"2008-11-01","last2":"76"},{"date":"2008-11-16","last2":"20"},{"date":"2008-12-01","last2":"05"},{"date":"2008-12-16","last2":"25"},{"date":"2008-12-30","last2":"22"},{"date":"2009-01-16","last2":"25"},{"date":"2009-02-01","last2":"69"},{"date":"2009-02-16","last2":"93"},{"date":"2009-03-01","last2":"67"},{"date":"2009-03-16","last2":"36"},{"date":"2009-04-01","last2":"50"},{"date":"2009-04-16","last2":"33"},{"date":"2009-05-02","last2":"11"},{"date":"2009-05-16","last2":"54"},{"date":"2009-06-01","last2":"26"},{"date":"2009-06-16","last2":"15"},{"date":"2009-07-01","last2":"66"},{"date":"2009-07-16","last2":"94"},{"date":"2009-08-01","last2":"92"},{"date":"2009-08-16","last2":"96"},{"date":"2009-09-01","last2":"32"},{"date":"2009-09-16","last2":"48"},{"date":"2009-10-01","last2":"06"},{"date":"2009-10-16","last2":"00"},{"date":"2009-11-01","last2":"85"},{"date":"2009-11-16","last2":"58"},{"date":"2009-12-01","last2":"59"},{"date":"2009-12-16","last2":"05"},{"date":"2009-12-30","last2":"87"},{"date":"2010-01-16","last2":"67"},{"date":"2010-02-01","last2":"14"},{"date":"2010-02-16","last2":"03"},{"date":"2010-03-01","last2":"97"},{"date":"2010-03-16","last2":"97"},{"date":"2010-04-01","last2":"22"},{"date":"2010-04-16","last2":"96"},{"date":"2010-05-02","last2":"06"},{"date":"2010-05-16","last2":"12"},{"date":"2010-06-01","last2":"81"},{"date":"2010-06-16","last2":"73"},{"date":"2010-07-01","last2":"68"},{"date":"2010-07-16","last2":"34"},{"date":"2010-08-01","last2":"10"},{"date":"2010-08-16","last2":"64"},{"date":"2010-09-01","last2":"11"},{"date":"2010-09-16","last2":"66"},{"date":"2010-10-01","last2":"02"},{"date":"2010-10-16","last2":"42"},{"date":"2010-11-01","last2":"59"},{"date":"2010-11-16","last2":"43"},{"date":"2010-12-01","last2":"09"},{"date":"2010-12-16","last2":"24"},{"date":"2010-12-30","last2":"49"},{"date":"2011-01-16","last2":"23"},{"date":"2011-02-01","last2":"55"},{"date":"2011-02-16","last2":"27"},{"date":"2011-03-16","last2":"96"},{"date":"2011-04-01","last2":"01"},{"date":"2011-04-16","last2":"44"},{"date":"2011-05-02","last2":"85"},{"date":"2011-05-16","last2":"05"},{"date":"2011-06-01","last2":"46"},{"date":"2011-06-16","last2":"88"},{"date":"2011-07-01","last2":"51"},{"date":"2011-07-16","last2":"12"},{"date":"2011-08-01","last2":"12"},{"date":"2011-08-16","last2":"62"},{"date":"2011-09-01","last2":"85"},{"date":"2011-09-16","last2":"28"},{"date":"2011-10-01","last2":"15"},{"date":"2011-10-16","last2":"83"},{"date":"2011-11-01","last2":"54"},{"date":"2011-11-16","last2":"57"},{"date":"2011-12-01","last2":"02"},{"date":"2011-12-16","last2":"21"},{"date":"2011-12-30","last2":"65"},{"date":"2012-01-16","last2":"81"},{"date":"2012-02-01","last2":"32"},{"date":"2012-02-16","last2":"18"},{"date":"2012-03-01","last2":"79"},{"date":"2012-03-16","last2":"08"},{"date":"2012-04-01","last2":"69"},{"date":"2012-04-16","last2":"62"},{"date":"2012-05-02","last2":"29"},{"date":"2012-05-16","last2":"31"},{"date":"2012-06-01","last2":"38"},{"date":"2012-06-16","last2":"51"},{"date":"2012-07-01","last2":"60"},{"date":"2012-07-16","last2":"11"},{"date":"2012-08-01","last2":"50"},{"date":"2012-08-16","last2":"28"},{"date":"2012-09-01","last2":"07"},{"date":"2012-09-16","last2":"79"},{"date":"2012-10-01","last2":"58"},{"date":"2012-10-16","last2":"28"},{"date":"2012-11-01","last2":"63"},{"date":"2012-11-16","last2":"15"},{"date":"2012-12-01","last2":"43"},{"date":"2012-12-16","last2":"72"},{"date":"2012-12-30","last2":"00"},{"date":"2013-01-16","last2":"08"},{"date":"2013-02-01","last2":"66"},{"date":"2013-02-16","last2":"09"},{"date":"2013-03-01","last2":"37"},{"date":"2013-03-16","last2":"52"},{"date":"2013-04-01","last2":"53"},{"date":"2013-04-16","last2":"86"},{"date":"2013-05-02","last2":"07"},{"date":"2013-05-16","last2":"56"},{"date":"2013-06-01","last2":"90"},{"date":"2013-06-16","last2":"69"},{"date":"2013-07-01","last2":"51"},{"date":"2013-07-16","last2":"86"},{"date":"2013-08-01","last2":"82"},{"date":"2013-08-16","last2":"20"},{"date":"2013-09-01","last2":"05"},{"date":"2013-09-16","last2":"63"},{"date":"2013-10-01","last2":"14"},{"date":"2013-10-16","last2":"60"},{"date":"2013-11-01","last2":"47"},{"date":"2013-11-16","last2":"28"},{"date":"2013-12-01","last2":"27"},{"date":"2013-12-16","last2":"79"},{"date":"2013-12-30","last2":"48"},{"date":"2014-01-16","last2":"52"},{"date":"2014-02-01","last2":"95"},{"date":"2014-02-16","last2":"01"},{"date":"2014-03-01","last2":"35"},{"date":"2014-03-16","last2":"79"},{"date":"2014-04-01","last2":"95"},{"date":"2014-04-16","last2":"26"},{"date":"2014-05-02","last2":"52"},{"date":"2014-05-16","last2":"20"},{"date":"2014-06-01","last2":"18"},{"date":"2014-06-16","last2":"95"},{"date":"2014-07-01","last2":"39"},{"date":"2014-07-16","last2":"45"},{"date":"2014-08-01","last2":"82"},{"date":"2014-08-16","last2":"91"},{"date":"2014-09-01","last2":"22"},{"date":"2014-09-16","last2":"35"},{"date":"2014-10-01","last2":"44"},{"date":"2014-10-16","last2":"94"},{"date":"2014-11-01","last2":"44"},{"date":"2014-11-16","last2":"25"},{"date":"2014-12-01","last2":"11"},{"date":"2014-12-16","last2":"90"},{"date":"2014-12-30","last2":"57"},{"date":"2015-01-16","last2":"74"},{"date":"2015-02-01","last2":"79"},{"date":"2015-02-16","last2":"90"},{"date":"2015-03-01","last2":"34"},{"date":"2015-03-16","last2":"92"},{"date":"2015-04-01","last2":"70"},{"date":"2015-04-16","last2":"38"},{"date":"2015-05-02","last2":"30"},{"date":"2015-05-16","last2":"38"},{"date":"2015-06-02","last2":"65"},{"date":"2015-06-16","last2":"05"},{"date":"2015-07-01","last2":"26"},{"date":"2015-07-16","last2":"49"},{"date":"2015-08-01","last2":"53"},{"date":"2015-08-16","last2":"40"},{"date":"2015-09-01","last2":"89"},{"date":"2015-09-16","last2":"06"},{"date":"2015-10-01","last2":"07"},{"date":"2015-10-16","last2":"62"},{"date":"2015-11-01","last2":"45"},{"date":"2015-11-16","last2":"03"},{"date":"2015-12-01","last2":"78"},{"date":"2015-12-17","last2":"08"},{"date":"2015-12-30","last2":"02"},{"date":"2016-01-17","last2":"50"},{"date":"2016-02-01","last2":"09"},{"date":"2016-02-16","last2":"98"},{"date":"2016-03-01","last2":"06"},{"date":"2016-03-16","last2":"32"},{"date":"2016-04-01","last2":"92"},{"date":"2016-04-16","last2":"87"},{"date":"2016-05-02","last2":"02"},{"date":"2016-05-16","last2":"98"},{"date":"2016-06-01","last2":"14"},{"date":"2016-06-16","last2":"79"},{"date":"2016-07-01","last2":"53"},{"date":"2016-07-16","last2":"55"},{"date":"2016-08-01","last2":"57"},{"date":"2016-08-16","last2":"33"},{"date":"2016-09-01","last2":"62"},{"date":"2016-09-16","last2":"42"},{"date":"2016-10-01","last2":"33"},{"date":"2016-10-16","last2":"98"},{"date":"2016-11-01","last2":"86"},{"date":"2016-11-16","last2":"44"},{"date":"2016-12-01","last2":"77"},{"date":"2016-12-16","last2":"35"},{"date":"2016-12-30","last2":"46"},{"date":"2017-01-17","last2":"25"},{"date":"2017-02-01","last2":"42"},{"date":"2017-02-16","last2":"14"},{"date":"2017-03-01","last2":"78"},{"date":"2017-03-16","last2":"92"},{"date":"2017-04-01","last2":"80"},{"date":"2017-04-16","last2":"40"},{"date":"2017-05-02","last2":"35"},{"date":"2017-05-16","last2":"53"},{"date":"2017-06-01","last2":"61"},{"date":"2017-06-16","last2":"47"},{"date":"2017-07-01","last2":"26"},{"date":"2017-07-16","last2":"87"},{"date":"2017-08-01","last2":"36"},{"date":"2017-08-16","last2":"37"},{"date":"2017-09-01","last2":"65"},{"date":"2017-09-16","last2":"71"},{"date":"2017-10-01","last2":"52"},{"date":"2017-10-16","last2":"86"},{"date":"2017-11-01","last2":"85"},{"date":"2017-11-16","last2":"98"},{"date":"2017-12-01","last2":"33"},{"date":"2017-12-16","last2":"89"},{"date":"2017-12-30","last2":"98"},{"date":"2018-01-17","last2":"50"},{"date":"2018-02-01","last2":"31"},{"date":"2018-02-16","last2":"39"},{"date":"2018-03-02","last2":"29"},{"date":"2018-03-16","last2":"82"},{"date":"2018-04-01","last2":"85"},{"date":"2018-04-16","last2":"60"},{"date":"2018-05-02","last2":"85"},{"date":"2018-05-16","last2":"20"},{"date":"2018-06-01","last2":"95"},{"date":"2018-06-16","last2":"46"},{"date":"2018-07-01","last2":"83"},{"date":"2018-07-16","last2":"27"},{"date":"2018-08-01","last2":"78"},{"date":"2018-08-16","last2":"10"},{"date":"2018-09-01","last2":"26"},{"date":"2018-09-16","last2":"79"},{"date":"2018-10-01","last2":"99"},{"date":"2018-10-16","last2":"93"},{"date":"2018-11-01","last2":"58"},{"date":"2018-11-16","last2":"16"},{"date":"2018-12-01","last2":"67"},{"date":"2018-12-16","last2":"62"},{"date":"2018-12-30","last2":"02"},{"date":"2019-01-17","last2":"65"},{"date":"2019-02-01","last2":"04"},{"date":"2019-02-16","last2":"56"},{"date":"2019-03-01","last2":"65"},{"date":"2019-03-16","last2":"64"},{"date":"2019-04-01","last2":"52"},{"date":"2019-04-16","last2":"23"},{"date":"2019-05-02","last2":"25"},{"date":"2019-05-16","last2":"71"},{"date":"2019-06-01","last2":"46"},{"date":"2019-06-16","last2":"29"},{"date":"2019-07-01","last2":"86"},{"date":"2019-07-15","last2":"88"},{"date":"2019-08-01","last2":"58"},{"date":"2019-08-16","last2":"89"},{"date":"2019-09-01","last2":"20"},{"date":"2019-09-16","last2":"85"},{"date":"2019-10-01","last2":"59"},{"date":"2019-10-16","last2":"15"},{"date":"2019-11-01","last2":"79"},{"date":"2019-11-16","last2":"32"},{"date":"2019-12-01","last2":"81"},{"date":"2019-12-16","last2":"97"},{"date":"2019-12-30","last2":"81"},{"date":"2020-01-17","last2":"68"},{"date":"2020-02-01","last2":"06"},{"date":"2020-02-16","last2":"94"},{"date":"2020-03-01","last2":"98"},{"date":"2020-03-16","last2":"77"},{"date":"2020-04-01","last2":"22"},{"date":"2020-05-16","last2":"22"},{"date":"2020-06-01","last2":"24"},{"date":"2020-06-16","last2":"64"},{"date":"2020-07-01","last2":"83"},{"date":"2020-07-16","last2":"53"},{"date":"2020-08-01","last2":"92"},{"date":"2020-08-16","last2":"88"},{"date":"2020-09-01","last2":"98"},{"date":"2020-09-16","last2":"57"},{"date":"2020-10-01","last2":"59"},{"date":"2020-10-16","last2":"38"},{"date":"2020-11-01","last2":"40"},{"date":"2020-11-16","last2":"46"},{"date":"2020-12-01","last2":"84"},{"date":"2020-12-16","last2":"70"},{"date":"2020-12-30","last2":"19"},{"date":"2021-01-17","last2":"15"},{"date":"2021-02-01","last2":"97"},{"date":"2021-02-16","last2":"39"},{"date":"2021-03-01","last2":"73"},{"date":"2021-03-16","last2":"19"},{"date":"2021-04-01","last2":"05"},{"date":"2021-04-16","last2":"56"},{"date":"2021-05-02","last2":"18"},{"date":"2021-05-16","last2":"14"},{"date":"2021-06-01","last2":"45"},{"date":"2021-06-16","last2":"17"},{"date":"2021-07-01","last2":"29"},{"date":"2021-07-16","last2":"70"},{"date":"2021-08-01","last2":"69"},{"date":"2021-08-16","last2":"23"},{"date":"2021-09-01","last2":"79"},{"date":"2021-09-16","last2":"90"},{"date":"2021-10-01","last2":"83"},{"date":"2021-10-16","last2":"38"},{"date":"2021-11-01","last2":"95"},{"date":"2021-11-16","last2":"57"},{"date":"2021-12-01","last2":"82"},{"date":"2021-12-16","last2":"83"},{"date":"2021-12-30","last2":"36"},{"date":"2022-01-17","last2":"92"},{"date":"2022-02-01","last2":"30"},{"date":"2022-02-17","last2":"57"},{"date":"2022-03-01","last2":"07"},{"date":"2022-03-16","last2":"03"},{"date":"2022-04-01","last2":"10"},{"date":"2022-04-16","last2":"58"},{"date":"2022-05-02","last2":"09"},{"date":"2022-05-16","last2":"06"},{"date":"2022-06-01","last2":"02"},{"date":"2022-06-16","last2":"92"},{"date":"2022-07-01","last2":"61"},{"date":"2022-07-16","last2":"53"},{"date":"2022-08-01","last2":"14"},{"date":"2022-08-16","last2":"42"},{"date":"2022-09-01","last2":"83"},{"date":"2022-09-16","last2":"75"},{"date":"2022-10-01","last2":"50"},{"date":"2022-10-16","last2":"15"},{"date":"2022-11-01","last2":"70"},{"date":"2022-11-16","last2":"64"},{"date":"2022-12-01","last2":"08"},{"date":"2022-12-16","last2":"14"},{"date":"2022-12-30","last2":"58"},{"date":"2023-01-17","last2":"47"},{"date":"2023-02-01","last2":"92"},{"date":"2023-02-16","last2":"80"},{"date":"2023-03-01","last2":"55"},{"date":"2023-03-16","last2":"73"},{"date":"2023-04-01","last2":"99"},{"date":"2023-04-16","last2":"71"},{"date":"2023-05-02","last2":"65"},{"date":"2023-05-16","last2":"99"},{"date":"2023-06-01","last2":"09"},{"date":"2023-06-16","last2":"30"},{"date":"2023-07-01","last2":"16"},{"date":"2023-07-16","last2":"62"},{"date":"2023-07-31","last2":"11"},{"date":"2023-08-16","last2":"67"},{"date":"2023-09-01","last2":"91"},{"date":"2023-09-16","last2":"46"},{"date":"2023-10-01","last2":"66"},{"date":"2023-10-16","last2":"44"},{"date":"2023-11-01","last2":"63"},{"date":"2023-11-16","last2":"14"},{"date":"2023-12-01","last2":"91"},{"date":"2023-12-16","last2":"85"},{"date":"2023-12-30","last2":"89"},{"date":"2024-01-17","last2":"61"},{"date":"2024-02-01","last2":"09"},{"date":"2024-02-16","last2":"43"},{"date":"2024-03-01","last2":"79"},{"date":"2024-03-16","last2":"78"},{"date":"2024-04-01","last2":"90"},{"date":"2024-04-16","last2":"79"},{"date":"2024-05-02","last2":"17"},{"date":"2024-05-16","last2":"60"},{"date":"2024-06-01","last2":"42"},{"date":"2024-06-16","last2":"31"},{"date":"2024-07-01","last2":"89"},{"date":"2024-07-16","last2":"21"},{"date":"2024-08-01","last2":"46"},{"date":"2024-08-16","last2":"28"},{"date":"2024-09-01","last2":"94"},{"date":"2024-09-16","last2":"37"},{"date":"2024-10-01","last2":"59"},{"date":"2024-10-16","last2":"00"},{"date":"2024-11-01","last2":"32"},{"date":"2024-11-16","last2":"38"},{"date":"2024-12-01","last2":"61"},{"date":"2024-12-16","last2":"21"}];
+
+    let statsInitDone = false;
+    let allDraws = [];
+    let currentFiltered = [];
+    const THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+
+    function toThaiDate(iso) {
+        const p = iso.split('-');
+        const y = parseInt(p[0], 10) + 543;
+        const m = parseInt(p[1], 10) - 1;
+        const d = parseInt(p[2], 10);
+        return d + ' ' + THAI_MONTHS[m] + ' ' + y;
+    }
+
+    function buildStatsGrid() {
+        const host = document.getElementById('gridHost');
+        host.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        for (let i = 0; i < 100; i++) {
+            const num = (i < 10 ? '0' : '') + i;
+            const btn = document.createElement('button');
+            btn.className = 'cell';
+            btn.type = 'button';
+            btn.dataset.num = num;
+            btn.innerHTML = '<span class="n">' + num + '</span><span class="c" data-role="count">0</span>';
+            btn.addEventListener('click', function () { openStatsPanel(this.dataset.num); });
+            grid.appendChild(btn);
+        }
+        host.appendChild(grid);
+    }
+
+    function colorForRatio(ratio) {
+        const light = [238, 242, 246];   // --bg
+        const dark  = [58, 102, 133];    // --primary-dk
+        const r = Math.round(light[0] + (dark[0] - light[0]) * Math.min(1, ratio * 1.15));
+        const g = Math.round(light[1] + (dark[1] - light[1]) * Math.min(1, ratio * 1.15));
+        const b = Math.round(light[2] + (dark[2] - light[2]) * Math.min(1, ratio * 1.15));
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+
+    function renderStats(years) {
+        document.querySelectorAll('.range-btn').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.years, 10) === years);
+        });
+
+        let cutoff = null;
+        if (years > 0) {
+            const d = new Date();
+            d.setFullYear(d.getFullYear() - years);
+            cutoff = d.toISOString().slice(0, 10);
+        }
+
+        currentFiltered = allDraws.filter(r => !cutoff || r.date >= cutoff);
+
+        const counts = {};
+        for (let i = 0; i < 100; i++) counts[(i < 10 ? '0' : '') + i] = 0;
+        currentFiltered.forEach(r => { counts[r.last2] = (counts[r.last2] || 0) + 1; });
+
+        let maxCount = 0;
+        Object.keys(counts).forEach(k => { if (counts[k] > maxCount) maxCount = counts[k]; });
+
+        document.querySelectorAll('.cell').forEach(cell => {
+            const num = cell.dataset.num;
+            const cnt = counts[num] || 0;
+            const ratio = maxCount > 0 ? cnt / maxCount : 0;
+            cell.style.background = colorForRatio(ratio);
+            cell.classList.toggle('hot', ratio > 0.55);
+            cell.querySelector('[data-role="count"]').textContent = cnt + '×';
+        });
+
+        document.getElementById('metaRange').textContent = currentFiltered.length === 0
+            ? 'ไม่มีข้อมูล'
+            : toThaiDate(currentFiltered[0].date) + ' – ' + toThaiDate(currentFiltered[currentFiltered.length - 1].date);
+        document.getElementById('metaCount').textContent = currentFiltered.length + ' งวด';
+
+        applyStatsHighlight(document.getElementById('searchInput').value);
+    }
+
+    function openStatsPanel(num) {
+        const matches = currentFiltered.filter(r => r.last2 === num).slice().reverse();
+        document.getElementById('panelNumber').textContent = num;
+        document.getElementById('panelSub').textContent = 'ออกทั้งหมด ' + matches.length + ' ครั้ง ในช่วงที่เลือก';
+
+        const list = document.getElementById('panelDates');
+        list.innerHTML = '';
+        if (matches.length === 0) {
+            const li = document.createElement('li');
+            li.textContent = 'ยังไม่เคยออกในช่วงที่เลือก 🙂';
+            list.appendChild(li);
+        } else {
+            matches.forEach(r => {
+                const li = document.createElement('li');
+                li.innerHTML = '<span>' + toThaiDate(r.date) + '</span><span class="y">งวด ' + r.date.slice(0, 4) + '</span>';
+                list.appendChild(li);
+            });
+        }
+        document.getElementById('overlay').classList.add('show');
+    }
+
+    function closeStatsPanel() {
+        document.getElementById('overlay').classList.remove('show');
+    }
+
+    function applyStatsHighlight(val) {
+        val = (val || '').trim();
+        document.querySelectorAll('.cell').forEach(cell => {
+            cell.classList.toggle('highlight', val.length > 0 && cell.dataset.num === val.padStart(2, '0'));
+        });
+    }
+
+    let randomHistory = [];
+    let randomSpinBusy = false;
+
+    function spinRandomNumbers(count) {
+        if (randomSpinBusy) return;
+        randomSpinBusy = true;
+        document.getElementById('randomBtn1').disabled = true;
+        document.getElementById('randomBtn3').disabled = true;
+
+        const display = document.getElementById('randomDisplay');
+        display.classList.add('spinning');
+
+        const spinTicks = 14;
+        let tick = 0;
+        const spinInterval = setInterval(() => {
+            const fakeNums = [];
+            for (let i = 0; i < count; i++) fakeNums.push(randomTwoDigit());
+            renderRandomDisplay(fakeNums);
+            tick++;
+            if (tick >= spinTicks) {
+                clearInterval(spinInterval);
+                const finalNums = [];
+                for (let i = 0; i < count; i++) finalNums.push(randomTwoDigit());
+                renderRandomDisplay(finalNums);
+                display.classList.remove('spinning');
+
+                finalNums.forEach(n => randomHistory.unshift(n));
+                randomHistory = randomHistory.slice(0, 12);
+                renderRandomHistory();
+
+                randomSpinBusy = false;
+                document.getElementById('randomBtn1').disabled = false;
+                document.getElementById('randomBtn3').disabled = false;
+            }
+        }, 70);
+    }
+
+    function randomTwoDigit() {
+        return String(Math.floor(Math.random() * 100)).padStart(2, '0');
+    }
+
+    function renderRandomDisplay(nums) {
+        document.getElementById('randomDisplay').innerHTML =
+            nums.map(n => '<span class="num-chip">' + n + '</span>').join('');
+    }
+
+    function renderRandomHistory() {
+        const wrap = document.getElementById('randomHistoryWrap');
+        const host = document.getElementById('randomHistory');
+        if (randomHistory.length === 0) { wrap.style.display = 'none'; return; }
+        wrap.style.display = '';
+        host.innerHTML = randomHistory.map(n => '<span class="chip">' + n + '</span>').join('');
+    }
+
+    function initStatsOnce() {
+        if (statsInitDone) return;
+        statsInitDone = true;
+
+        buildStatsGrid();
+
+        document.getElementById('rangeRow').addEventListener('click', e => {
+            const btn = e.target.closest('.range-btn');
+            if (!btn) return;
+            renderStats(parseInt(btn.dataset.years, 10));
+        });
+
+        document.getElementById('panelClose').addEventListener('click', closeStatsPanel);
+        document.getElementById('overlay').addEventListener('click', e => {
+            if (e.target.id === 'overlay') closeStatsPanel();
+        });
+
+        document.getElementById('searchInput').addEventListener('input', e => {
+            const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+            e.target.value = v;
+            applyStatsHighlight(v);
+        });
+
+        allDraws = DRAWS_DATA.slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+        renderStats(20);
+    }
+    </script>
+</body>
+</html>
