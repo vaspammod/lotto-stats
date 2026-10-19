@@ -408,9 +408,17 @@
 
         <div class="card">
             <h3 style="margin-top:0">🎰 สุ่มเลขสำหรับงวดหน้า</h3>
-            <p style="margin:0 0 14px; font-size:.82em; color:var(--ink-soft);">
-                สุ่มด้วย Math.random() ล้วน 100% ไม่ได้อิงสถิติย้อนหลังใดๆ ทั้งสิ้น เอาไว้เสี่ยงดวงขำๆ เท่านั้น
+            <p style="margin:0 0 10px; font-size:.82em; color:var(--ink-soft);">
+                ทำเพื่อความสนุกเท่านั้น — ในทางสถิติ เลขท้ายแต่ละงวดสุ่มเป็นอิสระต่อกัน เลขที่เคยออกบ่อยในอดีต
+                <b>ไม่ได้</b> แปลว่าจะมีโอกาสออกงวดหน้ามากกว่าเลขอื่น
             </p>
+
+            <label style="display:flex; align-items:center; gap:8px; margin-top:6px; cursor:pointer;">
+                <input type="checkbox" id="weightToggle" checked style="width:auto; margin:0;">
+                <span style="font-size:.85em; color:var(--ink);">ถ่วงน้ำหนักตามสถิติย้อนหลัง (เลขที่ออกบ่อยในช่วงที่เลือกด้านบน มีโอกาสถูกสุ่มมากกว่า)</span>
+            </label>
+            <small class="hint" id="weightHint" style="margin-bottom:10px;"></small>
+
             <div id="randomDisplay">--</div>
             <div class="row-2">
                 <button class="add-btn" id="randomBtn1" type="button" onclick="spinRandomNumbers(1)">
@@ -646,6 +654,7 @@
     let statsInitDone = false;
     let allDraws = [];
     let currentFiltered = [];
+    let currentCounts = null;
     const THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 
     function toThaiDate(iso) {
@@ -719,6 +728,18 @@
         document.getElementById('metaCount').textContent = currentFiltered.length + ' งวด';
 
         applyStatsHighlight(document.getElementById('searchInput').value);
+
+        currentCounts = counts;
+        updateWeightHint();
+    }
+
+    function updateWeightHint() {
+        const hintEl = document.getElementById('weightHint');
+        if (!hintEl) return;
+        const toggleOn = document.getElementById('weightToggle').checked;
+        hintEl.textContent = toggleOn
+            ? 'ใช้สถิติจาก ' + currentFiltered.length + ' งวดที่เลือกไว้ด้านบนเป็นน้ำหนัก'
+            : 'ปิดอยู่ — สุ่มเท่ากันทุกเลข (00–99 โอกาสเท่ากันหมด)';
     }
 
     function openStatsPanel(num) {
@@ -765,17 +786,20 @@
         const display = document.getElementById('randomDisplay');
         display.classList.add('spinning');
 
+        const useWeighted = document.getElementById('weightToggle').checked;
+        const pickOne = useWeighted ? weightedRandomTwoDigit : randomTwoDigit;
+
         const spinTicks = 14;
         let tick = 0;
         const spinInterval = setInterval(() => {
             const fakeNums = [];
-            for (let i = 0; i < count; i++) fakeNums.push(randomTwoDigit());
+            for (let i = 0; i < count; i++) fakeNums.push(randomTwoDigit()); // ระหว่างหมุนใช้สุ่มธรรมดาเพื่อความไว
             renderRandomDisplay(fakeNums);
             tick++;
             if (tick >= spinTicks) {
                 clearInterval(spinInterval);
                 const finalNums = [];
-                for (let i = 0; i < count; i++) finalNums.push(randomTwoDigit());
+                for (let i = 0; i < count; i++) finalNums.push(pickOne());
                 renderRandomDisplay(finalNums);
                 display.classList.remove('spinning');
 
@@ -792,6 +816,21 @@
 
     function randomTwoDigit() {
         return String(Math.floor(Math.random() * 100)).padStart(2, '0');
+    }
+
+    // สุ่มแบบถ่วงน้ำหนักตามจำนวนครั้งที่เลขนั้นเคยออกในช่วงที่เลือกไว้ (currentCounts)
+    // ใส่ smoothing +1 ให้ทุกเลขเสมอมีโอกาสถูกสุ่ม แม้จะไม่เคยออกเลยในช่วงที่เลือก
+    function weightedRandomTwoDigit() {
+        if (!currentCounts) return randomTwoDigit();
+        const nums = Object.keys(currentCounts);
+        const weights = nums.map(n => (currentCounts[n] || 0) + 1);
+        const total = weights.reduce((a, b) => a + b, 0);
+        let r = Math.random() * total;
+        for (let i = 0; i < nums.length; i++) {
+            r -= weights[i];
+            if (r <= 0) return nums[i];
+        }
+        return nums[nums.length - 1];
     }
 
     function renderRandomDisplay(nums) {
@@ -829,6 +868,8 @@
             e.target.value = v;
             applyStatsHighlight(v);
         });
+
+        document.getElementById('weightToggle').addEventListener('change', updateWeightHint);
 
         allDraws = DRAWS_DATA.slice().sort((a, b) => (a.date < b.date ? -1 : 1));
         renderStats(20);
